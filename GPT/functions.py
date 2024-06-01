@@ -25,14 +25,21 @@ def get_response(thread_id):
   return None
 
 
-def take_question(client, assistant_id, thread_id, question=None, run_data=None):
+def take_question(client, assistant, thread, question=None, run_data=None):
+
+    tool_kwargs = {
+        'client': client,
+        'assistant': assistant,
+        'thread': thread,
+    }
+
 
     if run_data:
         run = Runs(client=client).poll(run_id=run_data.id, thread_id=run_data.thread_id)
     else:
         if question:
             run = client.beta.threads.runs.create_and_poll(
-                thread_id=thread_id, assistant_id=assistant_id, poll_interval_ms=2000,
+                thread_id=thread.id, assistant_id=assistant.id, poll_interval_ms=2000,
                 additional_messages=[{'content': question, 'role': 'user'}]
             )
         else:
@@ -52,7 +59,7 @@ def take_question(client, assistant_id, thread_id, question=None, run_data=None)
                 f = globals().get(function_data.name)
                 if f:
                     arguments = json.loads(function_data.arguments)
-                    response_message = f(**arguments)
+                    response_message = f(**arguments, **tool_kwargs)
                     tool_outputs.append(
                         ToolOutput(output=str(response_message), tool_call_id=tool_call.id)
                     )
@@ -65,8 +72,8 @@ def take_question(client, assistant_id, thread_id, question=None, run_data=None)
 
                 return take_question(
                     client,
-                    assistant_id,
-                    thread_id,
+                    assistant,
+                    thread,
                     run_data=submit_tool,
                 )
             return False
